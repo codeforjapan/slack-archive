@@ -61,4 +61,14 @@ describe("the channel entry page's infinite scroll", () => {
     expect(script).toContain("scrollRestoration");
     expect(script).toContain("popstate");
   });
+
+  it("advances active message when the next message reaches the reading line", () => {
+    expect(script).toContain("gutters[i + 1].getBoundingClientRect().top <= line");
+    expect(script).toContain("gutters[i].getBoundingClientRect().top > line");
+  });
+
+  it("syncs syncIdx immediately when permalink message is found", () => {
+    expect(script).toContain("gutters[s].id === ts");
+    expect(script).toContain("syncIdx = s");
+  });
 });

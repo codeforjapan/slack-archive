@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v26.09.12.250] - 2026-09-12
+
+### Fixed
+- **Off-by-one active message in infinite scroll URL sync and permalinks**:
+  - **Replaced `bottom <= line` check with `gutters[i + 1].top <= line`**: The URL scroll listener in `static/channel.js` required the current message's bottom to completely pass the reading line before advancing, and retreated if the next message's top was below the reading line. This kept the previous message active while reading the next message, causing copied links to point to the previous message. The boundary now advances as soon as the next message reaches the reading line, and retreats when the current message falls below it.
+  - **Reading line threshold aligned with scroll margin**: Raised reading line threshold from `headerBottom + 15` (which could fall above the 64px `scroll-margin-top` on headers without topics) to `Math.max(Math.ceil(headerBottom + 25), 80)` so landing on an anchored message via permalink never misclassifies the target message as below the line.
+  - **Instant `syncIdx` update on permalink navigation**: In `static/channel.js`, `scrollPermalink` now immediately synchronizes `syncIdx` to the target element's index in `gutters` before triggering `scrollIntoView`, preventing the scroll handler from starting the boundary walk from index 0.
+
 ## [v26.09.12.249] - 2026-09-12
 
 ### Fixed

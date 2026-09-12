@@ -211,9 +211,19 @@
       return document.getElementById(ts);
     }
 
-    if (found()) {
+    function syncTo(el) {
       lastSyncedTs = ts;
-      found().scrollIntoView({ block: "start" });
+      for (var s = 0; s < gutters.length; s++) {
+        if (gutters[s].id === ts) {
+          syncIdx = s;
+          break;
+        }
+      }
+      el.scrollIntoView({ block: "start" });
+    }
+
+    if (found()) {
+      syncTo(found());
       return;
     }
 
@@ -224,8 +234,7 @@
       if (i >= chunksTotal) return;
       loadChunk(i, function (ok) {
         if (found()) {
-          lastSyncedTs = ts;
-          found().scrollIntoView({ block: "start" });
+          syncTo(found());
         } else if (ok && i + 1 < chunksTotal) {
           tryAt(i + 1);
         }
@@ -279,9 +288,10 @@
 
   // Scrolling writes the message spanning the reading line into the URL, so a
   // copied link reopens the reader where they left off. The reading line sits
-  // just past the sticky header's bottom where jump-to-anchor lands messages.
-  // Throttled, and the walk starts where it last stopped, because a scroll
-  // crosses a few messages, not all of them.
+  // just past where jump-to-anchor lands messages (scroll-margin-top: 64px on
+  // desktop, 96px on mobile), clearing the sticky header. Throttled, and the
+  // walk starts where it last stopped, because a scroll crosses a few
+  // messages, not all of them.
   var lastUrlUpdate = 0;
   window.addEventListener(
     "scroll",
@@ -292,14 +302,15 @@
 
       if (gutters.length === 0) return;
       var headerEl = document.querySelector(".header");
-      var line = headerEl
-        ? Math.ceil(headerEl.getBoundingClientRect().bottom + 15)
-        : 75;
+      var headerBottom = headerEl
+        ? headerEl.getBoundingClientRect().bottom
+        : 0;
+      var line = Math.max(Math.ceil(headerBottom + 25), 80);
       var i = Math.min(syncIdx, gutters.length - 1);
 
       while (
         i + 1 < gutters.length &&
-        gutters[i].getBoundingClientRect().bottom <= line
+        gutters[i + 1].getBoundingClientRect().top <= line
       ) {
         i++;
       }
