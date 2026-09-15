@@ -50,4 +50,19 @@ describe("nas-archive.sh in this repository", () => {
     expect(syncMedia).toContain("--chmod=");
     expect(syncMedia).toMatch(/\+rX|a\+r/);
   });
+
+  it("trims the log on every exit, not only a successful run", () => {
+    // The trim used to be the script's last line, reached only when the
+    // docker run succeeded. A run that kept failing (e.g. dockerd down)
+    // exited earlier via `exit "$status"` and skipped it, so the log grew
+    // without bound across every failed run - 39MB and counting in
+    // production before this was caught.
+    const onExit = script.slice(
+      script.indexOf("on_exit() {"),
+      script.indexOf("\n}", script.indexOf("on_exit() {")),
+    );
+
+    expect(onExit).toMatch(/tail -n 5000/);
+    expect((script.match(/tail -n 5000/g) || []).length).toBe(1);
+  });
 });

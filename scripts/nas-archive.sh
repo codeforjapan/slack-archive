@@ -117,6 +117,7 @@ on_exit() {
   _status=$?
   heartbeat_stop
   [ "$_status" -eq 0 ] || log "DIED: exit $_status"
+  tail -n 5000 "$LOG" > "$LOG.tmp" 2>/dev/null && mv "$LOG.tmp" "$LOG"
 }
 
 on_signal() {
@@ -350,5 +351,3 @@ else
   log "FAIL: exit $status"
   exit "$status"
 fi
-
-tail -n 5000 "$LOG" > "$LOG.tmp" && mv "$LOG.tmp" "$LOG"
