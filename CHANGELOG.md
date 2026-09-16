@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v26.09.16.251] - 2026-09-16
+
+### Added
+- **Media browser tab on the search page**:
+  - Downloaded attachments now have their own grid view on the search page (`mode=media`), filterable by channel, sender, and date range.
+  - Added a **Random** button to fetch a single attachment at random while honoring all active filters.
+  - Enriched the `files` table in SQLite (`src/search-db.ts`) with `user_id`, `timestamp`, and `filename` (the local saved filename) alongside new indexes (`files_channel_ts`, `files_user_ts`, `files_ts`), enabling direct filtered queries via `buildMediaSql` without joins back to `messages`.
+  - Exposed `filesBaseUrl` in `window.SEARCH_METADATA` so media items link directly to local attachment assets or the remote proxy URL.
+
+### Fixed
+- **Unbounded NAS archive log growth on failed runs**:
+  - Moved the 5000-line log truncation in `scripts/nas-archive.sh` into the `on_exit` trap so the log file is trimmed on every exit rather than only after successful runs.
+
 ## [v26.09.12.250] - 2026-09-12
 
 ### Fixed
