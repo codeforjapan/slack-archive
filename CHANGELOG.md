@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v26.09.16.252] - 2026-09-16
+
+### Added
+- **Direct media browser navigation links**:
+  - Added a "Browse media" link (`search.html?mode=media`) under "The archive itself" in the sidebar navigation across all rendered HTML archive pages (`src/create-html.tsx`).
+  - Added a "Browse media" link to the front page's quick links on `index.html`.
+
 ## [v26.09.16.251] - 2026-09-16
 
 ### Added

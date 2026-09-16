@@ -864,6 +864,9 @@ const Sidebar: React.FunctionComponent = () => {
             <a href={`${root}search.html`}>Search every message</a>
           </li>
           <li>
+            <a href={`${root}search.html?mode=media`}>Browse media</a>
+          </li>
+          <li>
             <a href={`${base}stats.html`}>Ten years in numbers</a>
           </li>
           <li>
@@ -889,7 +892,7 @@ const Sidebar: React.FunctionComponent = () => {
  * an iframe. Now every page stands on its own, and this one is simply the door.
  */
 const IndexPage: React.FunctionComponent = () => {
-  const { stats, teamMeta, base, channels, gaps, estimates } = useRender();
+  const { stats, teamMeta, base, root, channels, gaps, estimates } = useRender();
   const speculative = stats
     ? speculativeTotals(
         { messages: stats.messages, reactions: stats.reactions },
@@ -968,7 +971,8 @@ const IndexPage: React.FunctionComponent = () => {
               Start reading{first.name ? ` #${first.name}` : ""}
             </a>
           ) : null}{" "}
-          · <a href={`${base}stats.html`}>Ten years in numbers</a> ·{" "}
+          · <a href={`${root}search.html?mode=media`}>Browse media</a> ·{" "}
+          <a href={`${base}stats.html`}>Ten years in numbers</a> ·{" "}
           <a href={`${base}names.html`}>Names over the years</a>
         </p>
 

@@ -24,4 +24,8 @@ describe("the rendered pages", () => {
   it("does not inline the old-link redirect", () => {
     expect(source).not.toMatch(/selfHealingRedirect/);
   });
+
+  it("links to the media browser in the sidebar and front page", () => {
+    expect(source).toContain('href={`${root}search.html?mode=media`}');
+  });
 });
