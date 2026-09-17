@@ -78,6 +78,12 @@ class App extends React.PureComponent {
     this.handleMediaToChange = this.handleMediaToChange.bind(this);
     this.handleMediaReset = this.handleMediaReset.bind(this);
     this.handleMediaRandom = this.handleMediaRandom.bind(this);
+    this.handleMediaSelect = this.handleMediaSelect.bind(this);
+    this.handleMediaClose = this.handleMediaClose.bind(this);
+    this.handleMediaToggleZoom = this.handleMediaToggleZoom.bind(this);
+    this.handleMediaNext = this.handleMediaNext.bind(this);
+    this.handleMediaPrev = this.handleMediaPrev.bind(this);
+    this.handleCopyArchiveLink = this.handleCopyArchiveLink.bind(this);
 
     this.searchInputRef = React.createRef();
     // Queries are answered over the network now, so they come back out
@@ -85,6 +91,7 @@ class App extends React.PureComponent {
     this.queryId = 0;
     this.pending = null;
     this.mediaQueryId = 0;
+    this.copyTimer = null;
 
     const params = new URLSearchParams(window.location.search);
     const query = params.get("q") || "";
@@ -135,6 +142,9 @@ class App extends React.PureComponent {
       mediaTo: params.get("mto") || "",
       mediaSearching: false,
       mediaRandom: false,
+      activeMedia: null,
+      isZoomed: false,
+      copiedFileId: null,
     };
   }
 
@@ -174,6 +184,7 @@ class App extends React.PureComponent {
   componentWillUnmount() {
     window.removeEventListener("keydown", this.handleKeyDown);
     window.removeEventListener("popstate", this.handlePopState);
+    if (this.copyTimer) clearTimeout(this.copyTimer);
   }
 
   handleKeyDown(event) {
@@ -184,6 +195,29 @@ class App extends React.PureComponent {
       tagName === "TEXTAREA" ||
       tagName === "SELECT" ||
       (target && target.isContentEditable);
+
+    if (this.state.activeMedia) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        this.handleMediaClose();
+        return;
+      }
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        this.handleMediaPrev();
+        return;
+      }
+      if (event.key === "ArrowRight") {
+        event.preventDefault();
+        this.handleMediaNext();
+        return;
+      }
+      if ((event.key === "z" || event.key === "Z") && !isInputFocused) {
+        event.preventDefault();
+        this.handleMediaToggleZoom();
+        return;
+      }
+    }
 
     if (event.key === "/" && !isInputFocused) {
       event.preventDefault();
@@ -609,32 +643,32 @@ class App extends React.PureComponent {
   handleModeChange(mode) {
     if (mode === this.state.mode) return;
 
-    this.setState({ mode }, () => {
+    this.setState({ mode, activeMedia: null, isZoomed: false }, () => {
       this.syncUrlParams();
       if (mode === "media" && this.worker) this.updateMedia();
     });
   }
 
   handleMediaChannelChange({ target: { value } }) {
-    this.setState({ mediaChannel: value, mediaRandom: false }, () =>
+    this.setState({ mediaChannel: value, mediaRandom: false, activeMedia: null }, () =>
       this.updateMedia(),
     );
   }
 
   handleMediaUserChange({ target: { value } }) {
-    this.setState({ mediaUser: value, mediaRandom: false }, () =>
+    this.setState({ mediaUser: value, mediaRandom: false, activeMedia: null }, () =>
       this.updateMedia(),
     );
   }
 
   handleMediaFromChange({ target: { value } }) {
-    this.setState({ mediaFrom: value, mediaRandom: false }, () =>
+    this.setState({ mediaFrom: value, mediaRandom: false, activeMedia: null }, () =>
       this.updateMedia(),
     );
   }
 
   handleMediaToChange({ target: { value } }) {
-    this.setState({ mediaTo: value, mediaRandom: false }, () =>
+    this.setState({ mediaTo: value, mediaRandom: false, activeMedia: null }, () =>
       this.updateMedia(),
     );
   }
@@ -647,12 +681,77 @@ class App extends React.PureComponent {
         mediaFrom: "",
         mediaTo: "",
         mediaRandom: false,
+        activeMedia: null,
+        isZoomed: false,
       },
       () => {
         this.syncUrlParams();
         this.updateMedia();
       },
     );
+  }
+
+  handleMediaSelect(file) {
+    this.setState({ activeMedia: file, isZoomed: false });
+  }
+
+  handleMediaClose() {
+    this.setState({ activeMedia: null, isZoomed: false });
+  }
+
+  handleMediaToggleZoom() {
+    this.setState((state) => ({ isZoomed: !state.isZoomed }));
+  }
+
+  handleMediaNext() {
+    const { mediaFiles, activeMedia } = this.state;
+    if (!activeMedia || mediaFiles.length <= 1) return;
+    const idx = mediaFiles.findIndex((f) => f.id === activeMedia.id);
+    if (idx >= 0 && idx < mediaFiles.length - 1) {
+      this.setState({ activeMedia: mediaFiles[idx + 1], isZoomed: false });
+    } else if (idx === mediaFiles.length - 1) {
+      this.setState({ activeMedia: mediaFiles[0], isZoomed: false });
+    }
+  }
+
+  handleMediaPrev() {
+    const { mediaFiles, activeMedia } = this.state;
+    if (!activeMedia || mediaFiles.length <= 1) return;
+    const idx = mediaFiles.findIndex((f) => f.id === activeMedia.id);
+    if (idx > 0) {
+      this.setState({ activeMedia: mediaFiles[idx - 1], isZoomed: false });
+    } else if (idx === 0) {
+      this.setState({
+        activeMedia: mediaFiles[mediaFiles.length - 1],
+        isZoomed: false,
+      });
+    }
+  }
+
+  handleCopyArchiveLink(file) {
+    const href = messageLink(file.c, file.t);
+    try {
+      const base =
+        (typeof window !== "undefined" &&
+          window.location &&
+          window.location.href) ||
+        "http://localhost/";
+      const fullUrl = new URL(href, base).href;
+      if (
+        typeof navigator !== "undefined" &&
+        navigator.clipboard &&
+        navigator.clipboard.writeText
+      ) {
+        navigator.clipboard.writeText(fullUrl);
+      }
+      this.setState({ copiedFileId: file.id });
+      if (this.copyTimer) clearTimeout(this.copyTimer);
+      this.copyTimer = setTimeout(() => {
+        this.setState({ copiedFileId: null });
+      }, 2000);
+    } catch (err) {
+      console.error("copy link failed", err);
+    }
   }
 
   /**
@@ -684,6 +783,8 @@ class App extends React.PureComponent {
         mediaFiles: rows,
         mediaSearching: false,
         mediaRandom: true,
+        activeMedia: null,
+        isZoomed: false,
       });
     } catch (error) {
       if (id !== this.mediaQueryId) return;
@@ -713,11 +814,21 @@ class App extends React.PureComponent {
       const rows = await this.worker.db.query(query.sql, query.params);
       if (id !== this.mediaQueryId) return;
 
-      this.setState({ mediaFiles: rows, mediaSearching: false });
+      this.setState({
+        mediaFiles: rows,
+        mediaSearching: false,
+        activeMedia: null,
+        isZoomed: false,
+      });
     } catch (error) {
       if (id !== this.mediaQueryId) return;
       console.error("media lookup failed", error);
-      this.setState({ mediaFiles: [], mediaSearching: false });
+      this.setState({
+        mediaFiles: [],
+        mediaSearching: false,
+        activeMedia: null,
+        isZoomed: false,
+      });
     }
   }
 
@@ -835,6 +946,9 @@ class App extends React.PureComponent {
       mediaTo,
       mediaSearching,
       mediaRandom,
+      activeMedia,
+      isZoomed,
+      copiedFileId,
     } = this.state;
 
     if (error) {
@@ -870,12 +984,21 @@ class App extends React.PureComponent {
                   toDate={mediaTo}
                   searching={mediaSearching}
                   random={mediaRandom}
+                  activeMedia={activeMedia}
+                  isZoomed={isZoomed}
+                  copiedFileId={copiedFileId}
                   onChannelChange={this.handleMediaChannelChange}
                   onUserChange={this.handleMediaUserChange}
                   onFromChange={this.handleMediaFromChange}
                   onToChange={this.handleMediaToChange}
                   onReset={this.handleMediaReset}
                   onRandom={this.handleMediaRandom}
+                  onSelectMedia={this.handleMediaSelect}
+                  onCloseMedia={this.handleMediaClose}
+                  onToggleZoom={this.handleMediaToggleZoom}
+                  onNextMedia={this.handleMediaNext}
+                  onPrevMedia={this.handleMediaPrev}
+                  onCopyArchiveLink={this.handleCopyArchiveLink}
                 />
               ) : (
                 <p className="SearchSummary empty">
@@ -1304,12 +1427,21 @@ const MediaView = ({
   toDate,
   searching,
   random,
+  activeMedia,
+  isZoomed,
+  copiedFileId,
   onChannelChange,
   onUserChange,
   onFromChange,
   onToChange,
   onReset,
   onRandom,
+  onSelectMedia,
+  onCloseMedia,
+  onToggleZoom,
+  onNextMedia,
+  onPrevMedia,
+  onCopyArchiveLink,
 }) => {
   const hasFiltersActive = Boolean(
     selectedChannel || selectedUser || fromDate || toDate,
@@ -1342,7 +1474,14 @@ const MediaView = ({
         </p>
       )}
       {files.length > 0 ? (
-        <MediaGrid files={files} channels={channels} users={users} />
+        <MediaGrid
+          files={files}
+          channels={channels}
+          users={users}
+          onSelect={onSelectMedia}
+          onCopy={onCopyArchiveLink}
+          copiedFileId={copiedFileId}
+        />
       ) : (
         <p className="SearchSummary empty">
           {searching
@@ -1351,6 +1490,21 @@ const MediaView = ({
               ? "No media found for these filters."
               : "This archive has no attachments to browse."}
         </p>
+      )}
+      {activeMedia && (
+        <MediaZoomModal
+          file={activeMedia}
+          files={files}
+          channels={channels}
+          users={users}
+          isZoomed={isZoomed}
+          isCopied={copiedFileId === activeMedia.id}
+          onClose={onCloseMedia}
+          onToggleZoom={onToggleZoom}
+          onNext={onNextMedia}
+          onPrev={onPrevMedia}
+          onCopy={onCopyArchiveLink}
+        />
       )}
     </div>
   );
@@ -1434,10 +1588,25 @@ const MediaFilters = ({
   );
 };
 
-const MediaGrid = ({ files, channels, users }) => (
+const MediaGrid = ({
+  files,
+  channels,
+  users,
+  onSelect,
+  onCopy,
+  copiedFileId,
+}) => (
   <ul className="MediaGrid">
     {files.map((file) => (
-      <MediaItem key={file.id} file={file} channels={channels} users={users} />
+      <MediaItem
+        key={file.id}
+        file={file}
+        channels={channels}
+        users={users}
+        onSelect={onSelect}
+        onCopy={onCopy}
+        isCopied={copiedFileId === file.id}
+      />
     ))}
   </ul>
 );
@@ -1456,21 +1625,29 @@ function mediaFileUrl(channelId, filename) {
   return `${base}files/${channelId}/${filename}`;
 }
 
-const MediaItem = ({ file, channels, users }) => {
+const MediaItem = ({
+  file,
+  channels,
+  users,
+  onSelect,
+  onCopy,
+  isCopied,
+}) => {
   const href = messageLink(file.c, file.t);
   const src = mediaFileUrl(file.c, file.filename);
   const isImage = Number(file.is_image) === 1;
   const isVideo = !isImage && (file.mimetype || "").startsWith("video");
   const label = file.title || file.name || file.filename;
+  const channelName = channels[file.c] ? `#${channels[file.c]}` : file.c;
+  const userName = users[file.u] ? `@${users[file.u]}` : file.u;
 
   return (
     <li className="MediaItem">
-      <a
-        href={src}
-        target="_blank"
-        rel="noreferrer"
+      <button
+        type="button"
         className="MediaThumb"
-        title={label}
+        onClick={() => onSelect(file)}
+        title={label ? `${label} (click to zoom)` : "Click to zoom"}
       >
         {isImage ? (
           <img src={src} alt={label || ""} loading="lazy" />
@@ -1481,16 +1658,225 @@ const MediaItem = ({ file, channels, users }) => {
             {(file.filetype || "file").toUpperCase()}
           </span>
         )}
-      </a>
-      <p className="MediaMeta">
-        <a href={href} target="_blank" title="Open the message">
-          <span className="Channel">#{channels[file.c] || file.c}</span>
-          <span className="MetaSeparator">·</span>
-          <span>@{users[file.u] || file.u}</span>
-        </a>
-        <Timestamp timestamp={file.t} />
-      </p>
+        <span className="MediaZoomHint" aria-hidden="true">
+          🔍
+        </span>
+      </button>
+      <div className="MediaDetails">
+        {file.m_text && (
+          <p className="MediaMessage" title={file.m_text}>
+            <EmojiText text={file.m_text} query="" />
+          </p>
+        )}
+        <p className="MediaMeta">
+          <span className="MediaSender">
+            <span className="Channel">{channelName}</span>
+            <span className="MetaSeparator">·</span>
+            <span>{userName}</span>
+          </span>
+          <Timestamp timestamp={file.t} />
+        </p>
+        <div className="MediaActions">
+          <a
+            href={href}
+            target="_blank"
+            rel="noreferrer"
+            className="MediaArchiveLink"
+            title="Open message in archive context"
+          >
+            In archive ↗
+          </a>
+          <button
+            type="button"
+            className={`MediaCopyButton ${isCopied ? "copied" : ""}`}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onCopy(file);
+            }}
+            title="Copy link to this message in the archive"
+          >
+            {isCopied ? "✓ Copied" : "Copy link"}
+          </button>
+        </div>
+      </div>
     </li>
+  );
+};
+
+const MediaZoomModal = ({
+  file,
+  files,
+  channels,
+  users,
+  isZoomed,
+  isCopied,
+  onClose,
+  onToggleZoom,
+  onNext,
+  onPrev,
+  onCopy,
+}) => {
+  if (!file) return null;
+
+  const href = messageLink(file.c, file.t);
+  const src = mediaFileUrl(file.c, file.filename);
+  const isImage = Number(file.is_image) === 1;
+  const isVideo = !isImage && (file.mimetype || "").startsWith("video");
+  const label = file.title || file.name || file.filename;
+  const channelName = channels[file.c] ? `#${channels[file.c]}` : file.c;
+  const userName = users[file.u] ? `@${users[file.u]}` : file.u;
+
+  const currentIndex = files.findIndex((f) => f.id === file.id);
+  const hasMultiple = files.length > 1;
+
+  return (
+    <div
+      className="MediaModalBackdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Media Zoom View"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="MediaModalContent">
+        <header className="MediaModalHeader">
+          <div className="MediaModalMeta">
+            <span className="Channel">{channelName}</span>
+            <span className="MetaSeparator">·</span>
+            <span>{userName}</span>
+            <span className="MetaSeparator">·</span>
+            <Timestamp timestamp={file.t} />
+            {hasMultiple && currentIndex >= 0 && (
+              <span className="MediaModalCounter">
+                ({currentIndex + 1} of {files.length})
+              </span>
+            )}
+          </div>
+          <button
+            type="button"
+            className="MediaModalClose"
+            onClick={onClose}
+            title="Close (Esc)"
+            aria-label="Close"
+          >
+            ✕
+          </button>
+        </header>
+
+        <div className="MediaModalBody">
+          {hasMultiple && (
+            <button
+              type="button"
+              className="MediaModalNav prev"
+              onClick={onPrev}
+              title="Previous (Left arrow)"
+              aria-label="Previous"
+            >
+              ‹
+            </button>
+          )}
+
+          <div
+            className={`MediaModalStage ${isZoomed ? "zoomed" : ""}`}
+            onClick={() => {
+              if (isImage) onToggleZoom();
+            }}
+          >
+            {isImage ? (
+              <img
+                src={src}
+                alt={label || ""}
+                className={`MediaModalImg ${isZoomed ? "zoomed" : ""}`}
+                title={
+                  isZoomed
+                    ? "Click to fit screen"
+                    : "Click to zoom to actual size"
+                }
+              />
+            ) : isVideo ? (
+              <video
+                src={src}
+                controls
+                autoPlay
+                preload="metadata"
+                className="MediaModalVideo"
+              />
+            ) : (
+              <div className="MediaModalFileCard">
+                <span className="MediaFileBadge large">
+                  {(file.filetype || "file").toUpperCase()}
+                </span>
+                <span className="MediaModalFileName">{label}</span>
+              </div>
+            )}
+            {isImage && (
+              <button
+                type="button"
+                className="MediaZoomPill"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleZoom();
+                }}
+                title="Toggle fit or 100% actual size (Z)"
+              >
+                {isZoomed ? "🔍 Fit screen" : "🔍 100% Zoom"}
+              </button>
+            )}
+          </div>
+
+          {hasMultiple && (
+            <button
+              type="button"
+              className="MediaModalNav next"
+              onClick={onNext}
+              title="Next (Right arrow)"
+              aria-label="Next"
+            >
+              ›
+            </button>
+          )}
+        </div>
+
+        <footer className="MediaModalFooter">
+          {file.m_text && (
+            <div className="MediaModalMessage">
+              <EmojiText text={file.m_text} query="" />
+            </div>
+          )}
+          <div className="MediaModalActions">
+            <a
+              href={href}
+              target="_blank"
+              rel="noreferrer"
+              className="MediaModalActionBtn primary"
+              title="Open message in archive context"
+            >
+              View in archive ↗
+            </a>
+            <button
+              type="button"
+              className={`MediaModalActionBtn ${isCopied ? "copied" : ""}`}
+              onClick={() => onCopy(file)}
+              title="Copy shareable link to this message in the archive"
+            >
+              {isCopied ? "✓ Link Copied!" : "📋 Copy archive link"}
+            </button>
+            <a
+              href={src}
+              target="_blank"
+              rel="noreferrer"
+              className="MediaModalActionBtn"
+              title="Open original raw file in new tab"
+              download
+            >
+              Original file ↗
+            </a>
+          </div>
+        </footer>
+      </div>
+    </div>
   );
 };
 

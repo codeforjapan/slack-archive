@@ -237,6 +237,8 @@ describe("the media query", () => {
     const { sql, params } = buildMediaSql();
 
     expect(sql).toContain("from files f");
+    expect(sql).toContain("left join messages m on f.message_id = m.id");
+    expect(sql).toContain("m.message m_text");
     expect(sql).toContain("f.filename is not null");
     expect(sql).toContain("order by f.timestamp desc");
     expect(params).toEqual([60]);

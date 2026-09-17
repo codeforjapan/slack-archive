@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v26.09.17.253] - 2026-09-17
+
+### Added
+- **Attached message text in media browser**:
+  - Attached message captions/text are now queried via `LEFT JOIN messages m ON f.message_id = m.id` in `buildMediaSql` (`src/search-sql.ts`) and rendered directly below media items in both grid and zoom modal views.
+- **Tiled grid view with modal zoom for media browser**:
+  - Replaced the previous single-column layout with a responsive 220px tiled grid (`.MediaGrid`) where thumbnails are fully contained (`object-fit: contain`) without cropping desktop images.
+  - Clicking any thumbnail opens an interactive full-screen zoom modal (`MediaZoomModal`) with keyboard navigation (`Escape`, `ArrowLeft`, `ArrowRight`, `Z` to zoom), zoom toggle between fit-to-screen and natural resolution, and direct download links.
+- **Archive context links and copy buttons**:
+  - Added "In archive" context links (`.MediaArchiveLink`) next to each media item and in the zoom modal, jumping directly to the message in the channel archive (`channel.html#<timestamp>`).
+  - Added a one-click "Copy link" button (`.MediaCopyButton`) with feedback tooltip to easily share links to media in context.
+
 ## [v26.09.16.252] - 2026-09-16
 
 ### Added

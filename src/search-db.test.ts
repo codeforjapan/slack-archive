@@ -9,7 +9,7 @@ import {
   openSearchDatabase,
   searchDatabase,
 } from "./search-db.js";
-import { buildSearchSql } from "./search-sql.js";
+import { buildSearchSql, buildMediaSql } from "./search-sql.js";
 
 const CHANNELS = [
   { id: "C1", name: "general", kind: "public" as const, isArchived: false },
@@ -125,6 +125,23 @@ type FixtureMessage = {
   reactions?: Array<{ name: string; users?: Array<string>; count?: number }>;
 };
 
+// An attachment with an accompanying message text caption.
+const CAPTIONED = {
+  t: "1700000012.0001",
+  u: "U1",
+  m: "Katsokaa tätä kissaa!",
+  files: [
+    {
+      id: "F_WITH_TEXT",
+      name: "kissa-tekstilla.png",
+      title: "Kissa tekstilla",
+      filetype: "png",
+      mimetype: "image/png",
+      filename: "F_WITH_TEXT.png",
+    },
+  ],
+};
+
 const MESSAGES: Record<string, Array<FixtureMessage>> = {
   C1: [
     {
@@ -138,7 +155,7 @@ const MESSAGES: Record<string, Array<FixtureMessage>> = {
     { t: "1700000002.0001", u: "U1", m: "nothing interesting here, arkisto" },
     { t: "1700000003.0001", u: "U2", m: "" },
   ],
-  C1_FILES: [UNCAPTIONED],
+  C1_FILES: [UNCAPTIONED, CAPTIONED],
   C1_REACT: [REACTED, TRUNCATED],
   D1_FILES: [PRIVATE_FILE],
 };
@@ -212,7 +229,7 @@ describe("buildSearchDatabase", () => {
 
   it("indexes every message", () => {
     const db = openSearchDatabase(dbPath);
-    expect(countMessages(db)).toBe(8);
+    expect(countMessages(db)).toBe(9);
     db.close();
   });
 
@@ -225,7 +242,7 @@ describe("buildSearchDatabase", () => {
     });
 
     const db = openSearchDatabase(dbPath);
-    expect(countMessages(db)).toBe(8);
+    expect(countMessages(db)).toBe(9);
     db.close();
   });
 });
@@ -391,6 +408,23 @@ describe("file attachments", () => {
     const db = openSearchDatabase(dbPath);
     const row = db.get("SELECT filename FROM files WHERE id = 'F_DOC'") as any;
     expect(row.filename).toBeNull();
+    db.close();
+  });
+
+  // If a message carried text alongside a file, the media query returns it
+  // so the media browser can display the caption alongside the thumbnail.
+  it("returns attached message text when querying via buildMediaSql", () => {
+    const db = openSearchDatabase(dbPath);
+    const mediaQuery = buildMediaSql({ channel: "C1_FILES" });
+    const rows = db.all(mediaQuery.sql, mediaQuery.params) as any[];
+
+    const catWithText = rows.find((r) => r.id === "F_WITH_TEXT");
+    expect(catWithText).toBeDefined();
+    expect(catWithText.m_text).toBe("Katsokaa tätä kissaa!");
+
+    const uncaptioned = rows.find((r) => r.id === "F_CAT");
+    expect(uncaptioned).toBeDefined();
+    expect(uncaptioned.m_text).toBe("");
     db.close();
   });
 });

@@ -217,7 +217,7 @@ export function buildSearchSql(request: SearchRequest): SearchSql | undefined {
 const FILE_COLUMNS = `f.id id, f.channel_id c, f.user_id u, f.timestamp t,
       f.message_id message_id, f.name name, f.title title,
       f.filetype filetype, f.mimetype mimetype, f.filename filename,
-      f.is_image is_image`;
+      f.is_image is_image, m.message m_text`;
 
 export interface MediaRequest {
   channel?: string;
@@ -240,6 +240,9 @@ export interface MediaRequest {
  * Only files the archive actually saved: a file Slack hid behind the
  * free-plan limit, or a Google Doc that was never a file, has nothing to
  * show or to link, and `filename` is NULL for exactly those.
+ *
+ * Left-joins messages on message_id so any text message accompanying the
+ * media is returned without requiring a separate query.
  */
 export function buildMediaSql(request: MediaRequest = {}): SearchSql {
   const { channel, user, after, before, limit = 60, random = false } = request;
@@ -271,6 +274,7 @@ export function buildMediaSql(request: MediaRequest = {}): SearchSql {
   return {
     sql: `select ${FILE_COLUMNS}
     from files f
+    left join messages m on f.message_id = m.id
    where ${where.join(" and ")}
    order by ${random ? "random()" : "f.timestamp desc"}
    limit ?`,
