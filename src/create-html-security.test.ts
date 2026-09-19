@@ -25,7 +25,8 @@ describe("the rendered pages", () => {
     expect(source).not.toMatch(/selfHealingRedirect/);
   });
 
-  it("links to the media browser in the sidebar and front page", () => {
-    expect(source).toContain('href={`${root}search.html?mode=media`}');
+  it("does not link to the media browser or search page in the sidebar and front page", () => {
+    expect(source).not.toContain('href={`${root}search.html?mode=media`}');
+    expect(source).not.toContain('href={`${root}search.html`}');
   });
 });
