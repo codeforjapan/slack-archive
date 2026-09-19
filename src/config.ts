@@ -59,6 +59,7 @@ export const CHANNEL_TYPES = getCliParameter("--channel-types");
 export const NO_BACKUP = findCliParameter("--no-backup");
 export const NO_SEARCH = findCliParameter("--no-search");
 export const NO_FILE_DOWNLOAD = findCliParameter("--no-file-download");
+export const NO_AVATAR_DOWNLOAD = findCliParameter("--no-avatar-download");
 export const NO_SLACK_CONNECT = findCliParameter("--no-slack-connect");
 export const FORCE_HTML_GENERATION = findCliParameter(
   "--force-html-generation",

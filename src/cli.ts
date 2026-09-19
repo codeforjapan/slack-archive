@@ -22,6 +22,7 @@ import {
   getAvatarHistoryFilePath,
   NO_SLACK_CONNECT,
   NO_FILE_DOWNLOAD,
+  NO_AVATAR_DOWNLOAD,
   EXCLUDE_CHANNELS,
   TIMEZONE,
 } from "./config.js";
@@ -503,7 +504,7 @@ export async function main() {
       (total, avatars) => total + avatars.length,
       0,
     );
-    if (known === 0 || NO_FILE_DOWNLOAD) return;
+    if (known === 0 || NO_FILE_DOWNLOAD || NO_AVATAR_DOWNLOAD) return;
 
     const spinner = ora("Downloading past profile pictures...").start();
     let attempted = 0;
@@ -591,7 +592,7 @@ export async function main() {
       newMessages[channel.id] = downloadData.new;
 
       await downloadExtras(channel, result, users);
-      await downloadAvatars();
+      if (!NO_AVATAR_DOWNLOAD) await downloadAvatars();
 
       // Sort messages
       const spinner = ora(

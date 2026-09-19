@@ -40,17 +40,9 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           AWS_ENDPOINT_URL: https://${{ secrets.CF_ACCOUNT_ID }}.r2.cloudflarestorage.com
         run: |
-          mkdir -p slack-archive/data slack-archive/html
-          # メタデータ・検索 DB
+          mkdir -p slack-archive/data
           aws s3 sync "s3://${{ vars.R2_BUCKET_NAME }}/data" ./slack-archive/data \
             --no-progress || echo "R2 にデータなし — 新規作成"
-          # アバター・絵文字・添付ファイル（毎回再ダウンロードを防ぐ）
-          aws s3 sync "s3://${{ vars.R2_BUCKET_NAME }}/html/avatars" ./slack-archive/html/avatars \
-            --no-progress || true
-          aws s3 sync "s3://${{ vars.R2_BUCKET_NAME }}/html/emojis" ./slack-archive/html/emojis \
-            --no-progress || true
-          aws s3 sync "s3://${{ vars.R2_BUCKET_NAME }}/html/files" ./slack-archive/html/files \
-            --no-progress || true
 
       - name: Run slack-archive
         env:
@@ -82,6 +74,8 @@ jobs:
             --html-exclude-kinds im,mpim,private \
             --search-exclude-kinds im,mpim \
             --no-backup \
+            --no-avatar-download \
+            --no-file-download \
             --search-index db \
             $EXTRA_FLAGS
 
@@ -93,16 +87,8 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           AWS_ENDPOINT_URL: https://${{ secrets.CF_ACCOUNT_ID }}.r2.cloudflarestorage.com
         run: |
-          # メタデータ・検索 DB
           [ -d slack-archive/data ] && \
             aws s3 sync ./slack-archive/data "s3://${{ vars.R2_BUCKET_NAME }}/data" --no-progress
-          # アバター・絵文字・添付ファイル
-          [ -d slack-archive/html/avatars ] && \
-            aws s3 sync ./slack-archive/html/avatars "s3://${{ vars.R2_BUCKET_NAME }}/html/avatars" --no-progress
-          [ -d slack-archive/html/emojis ] && \
-            aws s3 sync ./slack-archive/html/emojis "s3://${{ vars.R2_BUCKET_NAME }}/html/emojis" --no-progress
-          [ -d slack-archive/html/files ] && \
-            aws s3 sync ./slack-archive/html/files "s3://${{ vars.R2_BUCKET_NAME }}/html/files" --no-progress
 
       - name: Prepare deploy directory
         run: |
