@@ -53,6 +53,7 @@ import {
   FORCE_HTML_GENERATION,
   HTML_DIR,
   getChannelEntryPath,
+  NO_AVATAR_DOWNLOAD,
 } from "./config.js";
 import { slackTimestampToJavaScriptTimestamp } from "./timestamp.js";
 import { getPageIndex, recordPage } from "./search.js";
@@ -270,6 +271,8 @@ interface AvatarProps {
   userId?: string;
 }
 const Avatar: React.FunctionComponent<AvatarProps> = ({ userId }) => {
+  if (NO_AVATAR_DOWNLOAD) return null;
+
   const { users, base } = useRender();
 
   if (!userId) return null;
@@ -861,12 +864,6 @@ const Sidebar: React.FunctionComponent = () => {
         <p className="section">The archive itself</p>
         <ul>
           <li>
-            <a href={`${root}search.html`}>Search every message</a>
-          </li>
-          <li>
-            <a href={`${root}search.html?mode=media`}>Browse media</a>
-          </li>
-          <li>
             <a href={`${base}stats.html`}>Ten years in numbers</a>
           </li>
           <li>
@@ -971,7 +968,6 @@ const IndexPage: React.FunctionComponent = () => {
               Start reading{first.name ? ` #${first.name}` : ""}
             </a>
           ) : null}{" "}
-          · <a href={`${root}search.html?mode=media`}>Browse media</a> ·{" "}
           <a href={`${base}stats.html`}>Ten years in numbers</a> ·{" "}
           <a href={`${base}names.html`}>Names over the years</a>
         </p>
