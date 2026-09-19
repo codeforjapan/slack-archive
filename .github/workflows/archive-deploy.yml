@@ -1,0 +1,116 @@
+name: Slack Archive → Cloudflare Pages
+
+on:
+  schedule:
+    - cron: '0 17 * * *'  # 毎日 2:00 JST (UTC 17:00)
+  workflow_dispatch:
+    inputs:
+      force_html:
+        description: 'HTML を強制再生成する'
+        type: boolean
+        default: false
+      reset_channels:
+        description: '全パブリックチャンネルを再取得（チャンネル設定リセット）'
+        type: boolean
+        default: false
+
+env:
+  AWS_DEFAULT_REGION: auto
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  archive-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      # tsc も走る (prepare スクリプト経由)
+      - run: npm ci
+
+      - name: Restore data from R2
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_ENDPOINT_URL: https://${{ secrets.CF_ACCOUNT_ID }}.r2.cloudflarestorage.com
+        run: |
+          mkdir -p slack-archive/data
+          aws s3 sync "s3://${{ vars.R2_BUCKET_NAME }}/data" ./slack-archive/data \
+            --no-progress \
+            || echo "R2 にデータなし — 新規作成"
+
+      - name: Run slack-archive
+        env:
+          SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
+          TZ: Asia/Tokyo
+        run: |
+          EXTRA_FLAGS="--timezone Asia/Tokyo"
+
+          # 2回目以降は前回選択したチャンネルを再利用
+          # slack-archive.json が R2 から復元されていれば --use-previous-channel-config が有効
+          if [ -f "slack-archive/data/slack-archive.json" ] && \
+             [ "${{ github.event.inputs.reset_channels }}" != "true" ]; then
+            EXTRA_FLAGS="$EXTRA_FLAGS --use-previous-channel-config"
+          fi
+
+          # HTML 強制再生成
+          if [ "${{ github.event.inputs.force_html }}" = "true" ]; then
+            EXTRA_FLAGS="$EXTRA_FLAGS --force-html-generation"
+          fi
+
+          # 除外チャンネル (GitHub Variable: EXCLUDE_CHANNELS をカンマ区切りで設定)
+          if [ -n "${{ vars.EXCLUDE_CHANNELS }}" ]; then
+            EXTRA_FLAGS="$EXTRA_FLAGS --exclude-channels ${{ vars.EXCLUDE_CHANNELS }}"
+          fi
+
+          node bin/slack-archive.js \
+            --automatic \
+            --channel-types public_channel \
+            --html-exclude-kinds im,mpim,private \
+            --search-exclude-kinds im,mpim \
+            --no-backup \
+            --search-index db \
+            $EXTRA_FLAGS
+
+      - name: Save data to R2
+        # アーカイブ失敗時も保存を試みる
+        if: always()
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_ENDPOINT_URL: https://${{ secrets.CF_ACCOUNT_ID }}.r2.cloudflarestorage.com
+        run: |
+          if [ -d "slack-archive/data" ]; then
+            aws s3 sync ./slack-archive/data "s3://${{ vars.R2_BUCKET_NAME }}/data" \
+              --no-progress
+          fi
+
+      - name: Prepare deploy directory
+        run: |
+          mkdir -p dist/data
+
+          # トップページ・検索ページ
+          [ -f slack-archive/index.html ]  && cp slack-archive/index.html  dist/
+          [ -f slack-archive/search.html ] && cp slack-archive/search.html dist/
+
+          # HTML ページ群 (files/ avatars/ emojis/ を含む)
+          [ -d slack-archive/html ] && cp -r slack-archive/html dist/
+
+          # 検索 DB とサイドバー HTML のみ (生の JSON は除外)
+          [ -f slack-archive/data/search.db ]    && cp slack-archive/data/search.db    dist/data/
+          [ -f slack-archive/data/sidebar.html ] && cp slack-archive/data/sidebar.html dist/data/
+
+      - name: Deploy to Cloudflare Pages
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        run: |
+          npx wrangler@latest pages deploy dist \
+            --project-name "${{ vars.CF_PAGES_PROJECT_NAME }}" \
+            --commit-dirty=true
