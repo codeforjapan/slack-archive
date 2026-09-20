@@ -24,6 +24,7 @@ import {
   NO_FILE_DOWNLOAD,
   NO_AVATAR_DOWNLOAD,
   EXCLUDE_CHANNELS,
+  INCLUDE_CHANNELS,
   TIMEZONE,
 } from "./config.js";
 import { useTimezone } from "./timezone.js";
@@ -65,6 +66,7 @@ import {
 import { getSlackArchiveData, setSlackArchiveData } from "./archive-data.js";
 import { downloadAllEmoji, downloadEmojiList } from "./emoji.js";
 import { downloadAllUsers, downloadAvatars } from "./users.js";
+import { addIncludeChannels } from "./channels.js";
 import { downloadChannels, downloadChannelMembers } from "./channels.js";
 import { authTest } from "./web-client.js";
 import { User, Channel, SlackArchiveChannelData } from "./interfaces.js";
@@ -135,6 +137,19 @@ async function selectChannels(
       console.log(
         `Matched all ${previousChannelIds.length} previously selected channels out of ${channels.length} total channels available.`,
       );
+    }
+
+    if (INCLUDE_CHANNELS) {
+      const includeNames = INCLUDE_CHANNELS.split(",").map((s) => s.trim());
+      const before = selectedChannels.length;
+      const withAdded = addIncludeChannels(channels, selectedChannels, includeNames);
+      const added = withAdded.slice(before);
+      if (added.length > 0) {
+        console.log(
+          `Adding new channels from --include-channels: ${added.map((c) => c.name || c.id).join(", ")}.`,
+        );
+      }
+      return withAdded;
     }
 
     return selectedChannels;

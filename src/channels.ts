@@ -88,6 +88,30 @@ export function channelKind(channel: Channel): ChannelKind {
   return "public";
 }
 
+/**
+ * Add channels specified by name or id to an already-selected list.
+ *
+ * Used with --use-previous-channel-config: the previous run's channels are the
+ * base, and --include-channels appends any new ones without requiring a local
+ * interactive run to update the selection.
+ */
+export function addIncludeChannels(
+  allChannels: Array<Channel>,
+  selected: Array<Channel>,
+  includeNames: Array<string>,
+): Array<Channel> {
+  if (includeNames.length === 0) return selected;
+
+  const selectedIds = new Set(selected.map((c) => c.id));
+  const additional = allChannels.filter(
+    (c) =>
+      !selectedIds.has(c.id) &&
+      (includeNames.includes(c.name || "") || includeNames.includes(c.id || "")),
+  );
+
+  return [...selected, ...additional];
+}
+
 export function isPublicChannel(channel: Channel) {
   return !channel.is_private && !channel.is_mpim && !channel.is_im;
 }

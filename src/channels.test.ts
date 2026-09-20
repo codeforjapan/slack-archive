@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-import { channelKind } from "./channels.js";
+import { channelKind, addIncludeChannels } from "./channels.js";
 
 // Slack sets `is_private: true` on DMs and group DMs as well as on private
 // channels, so a classifier that asks "is it private?" first labels every DM
@@ -44,5 +44,40 @@ describe("channelKind", () => {
         is_mpim: false,
       }),
     ).toBe("public");
+  });
+});
+
+describe("addIncludeChannels", () => {
+  const allChannels = [
+    { id: "C1", name: "general" },
+    { id: "C2", name: "random" },
+    { id: "C3", name: "dev" },
+    { id: "C4", name: "design" },
+  ];
+  const selected = [{ id: "C1", name: "general" }];
+
+  it("adds channels matched by name", () => {
+    const result = addIncludeChannels(allChannels, selected, ["random", "dev"]);
+    expect(result.map((c) => c.id)).toEqual(["C1", "C2", "C3"]);
+  });
+
+  it("adds channels matched by id", () => {
+    const result = addIncludeChannels(allChannels, selected, ["C4"]);
+    expect(result.map((c) => c.id)).toEqual(["C1", "C4"]);
+  });
+
+  it("does not duplicate already-selected channels", () => {
+    const result = addIncludeChannels(allChannels, selected, ["general"]);
+    expect(result.map((c) => c.id)).toEqual(["C1"]);
+  });
+
+  it("ignores names that do not match any channel", () => {
+    const result = addIncludeChannels(allChannels, selected, ["nonexistent"]);
+    expect(result.map((c) => c.id)).toEqual(["C1"]);
+  });
+
+  it("returns selected unchanged when include list is empty", () => {
+    const result = addIncludeChannels(allChannels, selected, []);
+    expect(result.map((c) => c.id)).toEqual(["C1"]);
   });
 });
