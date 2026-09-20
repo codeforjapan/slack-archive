@@ -68,6 +68,11 @@ jobs:
             EXTRA_FLAGS="$EXTRA_FLAGS --exclude-channels ${{ vars.EXCLUDE_CHANNELS }}"
           fi
 
+          # 追加チャンネル (GitHub Variable: INCLUDE_CHANNELS をカンマ区切りで設定)
+          if [ -n "${{ vars.INCLUDE_CHANNELS }}" ]; then
+            EXTRA_FLAGS="$EXTRA_FLAGS --include-channels ${{ vars.INCLUDE_CHANNELS }}"
+          fi
+
           node bin/slack-archive.js \
             --automatic \
             --channel-types public_channel \

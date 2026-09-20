@@ -65,6 +65,7 @@ export const FORCE_HTML_GENERATION = findCliParameter(
   "--force-html-generation",
 );
 export const EXCLUDE_CHANNELS = getCliParameter("--exclude-channels");
+export const INCLUDE_CHANNELS = getCliParameter("--include-channels");
 
 /**
  * Where attachments are served from, if not from beside the HTML.
