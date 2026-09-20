@@ -345,7 +345,7 @@
       // points at, and the walk finds it.
       scrollPermalink(initialTs);
     } else {
-      window.scrollTo(0, 0);
+      window.scrollTo(0, document.documentElement.scrollHeight);
     }
   });
 
