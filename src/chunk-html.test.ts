@@ -31,18 +31,15 @@ describe("chunkMessagesHtml()", () => {
     expect(html).toContain("newest");
   });
 
-  it("draws a gap divider where the archive stops and starts again", () => {
+  it("does not draw a gap divider between messages", () => {
     setRenderContext({ ...emptyRenderContext(), gaps: MARCH_GAP });
 
     const html = chunkMessagesHtml(MESSAGES as never, "C1");
 
-    expect(html).toContain("days missing from the archive here");
-    expect(html.indexOf("days missing")).toBeGreaterThan(
-      html.indexOf(`id="${FEB_29}"`),
-    );
+    expect(html).not.toContain("days missing from the archive here");
   });
 
-  it("draws the divider at the top of a chunk, using the message that sits in the chunk below", () => {
+  it("does not draw a gap divider at the top of a chunk", () => {
     setRenderContext({ ...emptyRenderContext(), gaps: MARCH_GAP });
 
     const html = chunkMessagesHtml(
@@ -51,10 +48,7 @@ describe("chunkMessagesHtml()", () => {
       FEB_29,
     );
 
-    expect(html).toContain("days missing from the archive here");
-    expect(html.indexOf("days missing")).toBeLessThan(
-      html.indexOf(`id="${MAR_11}"`),
-    );
+    expect(html).not.toContain("days missing from the archive here");
   });
 
   it("says so, rather than staying silent, when the channel was never used", () => {

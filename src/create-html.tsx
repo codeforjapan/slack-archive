@@ -1398,44 +1398,10 @@ function formatIsoDay(iso: string): string {
  * archived. Where the archiver did not run, that is not the same as what was
  * said, and a chart that does not say so is simply wrong about those months.
  */
-const GapNotice: React.FunctionComponent = () => {
-  const { gaps } = useRender();
-
-  if (gaps.length === 0) return null;
-
-  const missing = gaps.reduce((n, gap) => n + gap.days, 0);
-
-  return (
-    <div className="gap-notice" role="note">
-      <strong>
-        The archive is missing {formatCount(missing)} days
-        {gaps.length > 1 ? ` in ${gaps.length} stretches` : ""}.
-      </strong>{" "}
-      Nothing was archived{" "}
-      {gaps.map((gap, i) => (
-        <span key={gap.from}>
-          {i > 0 ? (i === gaps.length - 1 ? " and " : ", ") : ""}
-          <span className="gap-range">
-            {formatIsoDay(gap.from)}&nbsp;-&nbsp;{formatIsoDay(gap.to)}
-          </span>
-        </span>
-      ))}
-      , because the archiver was not run. Slack does not have them either - the
-      workspace keeps about 90 days of history, so what was not archived at the
-      time is gone. Every number and chart on this page counts what was
-      archived, not what was said.
-    </div>
-  );
-};
+const GapNotice: React.FunctionComponent = () => null;
 
 /** The same thing, in one line, where a whole paragraph would be in the way. */
-const GapDivider: React.FunctionComponent<{ gap: Gap }> = ({ gap }) => (
-  <div className="gap-divider" role="note">
-    {formatCount(gap.days)} days missing from the archive here -{" "}
-    {formatIsoDay(gap.from)} to {formatIsoDay(gap.to)}. Not silence: nothing was
-    archived then, and Slack no longer has it.
-  </div>
-);
+const GapDivider: React.FunctionComponent<{ gap: Gap }> = () => null;
 
 /**
  * The link to somebody's profile page, or nothing when no page was written
