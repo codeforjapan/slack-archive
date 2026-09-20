@@ -197,7 +197,7 @@
         }
       }
     },
-    { rootMargin: "3000px 0px" },
+    { rootMargin: "1000px 0px" },
   );
   observer.observe(olderSentinel);
   observer.observe(newerSentinel);
@@ -345,7 +345,7 @@
       // points at, and the walk finds it.
       scrollPermalink(initialTs);
     } else {
-      window.scrollTo(0, document.documentElement.scrollHeight);
+      window.scrollTo(0, 0);
     }
   });
 
